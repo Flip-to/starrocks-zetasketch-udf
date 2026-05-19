@@ -186,8 +186,8 @@ SHOW GLOBAL FUNCTIONS;
 Two paths to feed real BQ sketches at a local StarRocks cluster:
 
 - **StarRocks BigQuery External Catalog** (StarRocks v3.2+) — query BQ
-  tables in place. Wrap `metrics.total_users_hll` with `TO_BASE64()` so
-  it lands in StarRocks as a `STRING` for the UDFs to consume.
+  tables in place. Wrap your HLL `BYTES` column with `TO_BASE64()` so it
+  lands in StarRocks as a `STRING` for the UDFs to consume.
 - **Pull + Stream Load** — run a small Python script on the host that
   reads sketches from BQ (as `BYTES`), base64-encodes them, and POSTs to
   `http://<be-host>:8040/api/<db>/<table>/_stream_load`. Then query in
