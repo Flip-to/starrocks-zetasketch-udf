@@ -22,7 +22,7 @@ jobs:
       version: ${{ steps.release.outputs.version }}
     steps:
       - id: release
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@v5
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
@@ -65,7 +65,7 @@ jobs:
           echo "jar=${JAR}" >> "$GITHUB_OUTPUT"
 
       - name: Attach jars to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.release-please.outputs.tag_name }}
           fail_on_unmatched_files: true
