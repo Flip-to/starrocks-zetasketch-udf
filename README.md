@@ -102,17 +102,47 @@ artifact (no Release created).
 
 ## Deploy to StarRocks
 
-1. Upload the shaded jar to an HTTP server reachable from every FE and BE.
-2. Enable Java UDFs (FE config `enable_udf=true`, then restart FEs).
-3. Register the functions (replace the URL):
+### 1. Make the jar reachable from every FE and BE
+
+Pick one:
+
+- **Public GitHub Release** (simplest, requires internet from the cluster):
+  use the URL of the shaded jar from a GitHub release, e.g.
+  `https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.1.1/starrocks-zetasketch-udf-0.1.1-jar-with-dependencies.jar`
+- **Self-hosted HTTP**: drop the shaded jar on any HTTP server the cluster
+  can reach (`python3 -m http.server 8000` on a jump host works).
+
+### 2. Enable Java UDFs
+
+In `fe/conf/fe.conf` (and restart FEs):
+
+```
+enable_udf = true
+```
+
+### 3. Register the functions
+
+Set the jar URL once and substitute it into each `CREATE FUNCTION`. The
+example below uses the public v0.1.1 release; replace as needed. StarRocks
+does NOT support SQL variables in `PROPERTIES`, so the URL must be inlined.
 
 ```sql
+-- Scalar UDF: cardinality from a single sketch.
+CREATE GLOBAL FUNCTION hllpp_extract(STRING)
+RETURNS BIGINT
+PROPERTIES (
+    "symbol" = "to.flip.udf.HllppExtract",
+    "type"   = "StarrocksJar",
+    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.1.1/starrocks-zetasketch-udf-0.1.1-jar-with-dependencies.jar"
+);
+
+-- INIT family — pick the input type that matches your column.
 CREATE GLOBAL AGGREGATE FUNCTION hllpp_init_string(STRING)
 RETURNS STRING
 PROPERTIES (
     "symbol" = "to.flip.udf.HllppInitString",
     "type"   = "StarrocksJar",
-    "file"   = "http://udf-host/starrocks-zetasketch-udf-0.1.0-jar-with-dependencies.jar"
+    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.1.1/starrocks-zetasketch-udf-0.1.1-jar-with-dependencies.jar"
 );
 
 CREATE GLOBAL AGGREGATE FUNCTION hllpp_init_long(BIGINT)
@@ -120,7 +150,7 @@ RETURNS STRING
 PROPERTIES (
     "symbol" = "to.flip.udf.HllppInitLong",
     "type"   = "StarrocksJar",
-    "file"   = "http://udf-host/starrocks-zetasketch-udf-0.1.0-jar-with-dependencies.jar"
+    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.1.1/starrocks-zetasketch-udf-0.1.1-jar-with-dependencies.jar"
 );
 
 CREATE GLOBAL AGGREGATE FUNCTION hllpp_init_bytes(STRING)
@@ -128,7 +158,16 @@ RETURNS STRING
 PROPERTIES (
     "symbol" = "to.flip.udf.HllppInitBytes",
     "type"   = "StarrocksJar",
-    "file"   = "http://udf-host/starrocks-zetasketch-udf-0.1.0-jar-with-dependencies.jar"
+    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.1.1/starrocks-zetasketch-udf-0.1.1-jar-with-dependencies.jar"
+);
+
+-- MERGE family — operates on pre-built sketches (your own or from BigQuery).
+CREATE GLOBAL AGGREGATE FUNCTION hllpp_merge(STRING)
+RETURNS BIGINT
+PROPERTIES (
+    "symbol" = "to.flip.udf.HllppMerge",
+    "type"   = "StarrocksJar",
+    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.1.1/starrocks-zetasketch-udf-0.1.1-jar-with-dependencies.jar"
 );
 
 CREATE GLOBAL AGGREGATE FUNCTION hllpp_merge_partial(STRING)
@@ -136,24 +175,35 @@ RETURNS STRING
 PROPERTIES (
     "symbol" = "to.flip.udf.HllppMergePartial",
     "type"   = "StarrocksJar",
-    "file"   = "http://udf-host/starrocks-zetasketch-udf-0.1.0-jar-with-dependencies.jar"
+    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.1.1/starrocks-zetasketch-udf-0.1.1-jar-with-dependencies.jar"
 );
 
-CREATE GLOBAL AGGREGATE FUNCTION hllpp_merge(STRING)
-RETURNS BIGINT
-PROPERTIES (
-    "symbol" = "to.flip.udf.HllppMerge",
-    "type"   = "StarrocksJar",
-    "file"   = "http://udf-host/starrocks-zetasketch-udf-0.1.0-jar-with-dependencies.jar"
-);
+SHOW GLOBAL FUNCTIONS;
+```
 
-CREATE GLOBAL FUNCTION hllpp_extract(STRING)
-RETURNS BIGINT
-PROPERTIES (
-    "symbol" = "to.flip.udf.HllppExtract",
-    "type"   = "StarrocksJar",
-    "file"   = "http://udf-host/starrocks-zetasketch-udf-0.1.0-jar-with-dependencies.jar"
-);
+### 4. (Optional) Pull BigQuery sketches into StarRocks for testing
+
+Two paths to feed real BQ sketches at a local StarRocks cluster:
+
+- **StarRocks BigQuery External Catalog** (StarRocks v3.2+) — query BQ
+  tables in place. Wrap `metrics.total_users_hll` with `TO_BASE64()` so
+  it lands in StarRocks as a `STRING` for the UDFs to consume.
+- **Pull + Stream Load** — run a small Python script on the host that
+  reads sketches from BQ (as `BYTES`), base64-encodes them, and POSTs to
+  `http://<be-host>:8040/api/<db>/<table>/_stream_load`. Then query in
+  StarRocks like any other table.
+
+The repo's `scripts/dump_bq_fixtures.py` is the pattern to copy — it
+already builds the SQL that gets `HLL_COUNT.EXTRACT` ground-truth and the
+base64 sketch in the same row, which makes a `diff` column trivial:
+
+```sql
+SELECT
+    expected_count                 AS bq_count,
+    hllpp_extract(base64_sketch)   AS sr_count,
+    expected_count
+      - hllpp_extract(base64_sketch) AS diff   -- must be 0
+FROM <your_sketch_table>;
 ```
 
 ## Cross-engine validation
