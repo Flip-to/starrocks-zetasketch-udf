@@ -1,0 +1,13 @@
+# Default reviewer for any change.
+*                       @yuriolive
+
+# Workflow / release-pipeline files: review here is load-bearing because
+# a bad workflow edit can leak secrets or bypass CI.
+/.github/workflows/     @yuriolive
+/.github/dependabot.yml @yuriolive
+/release-please-config.json    @yuriolive
+/.release-please-manifest.json @yuriolive
+
+# Java source and tests.
+/src/                   @yuriolive
+/pom.xml                @yuriolive
