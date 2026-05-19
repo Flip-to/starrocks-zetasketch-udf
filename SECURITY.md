@@ -5,7 +5,7 @@
 If you discover a security issue in this repository, please **do not** open a
 public GitHub issue.
 
-Submit the report through the contact form at <https://www.example.com/about/>.
+Submit the report through the contact form at <https://www.flip.to/about/>.
 Use the subject line `[SECURITY] starrocks-zetasketch-udf: <short summary>`
 and include reproduction steps, affected version, and impact.
 
