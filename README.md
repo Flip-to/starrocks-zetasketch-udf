@@ -4,9 +4,8 @@ BigQuery-compatible HLL++ functions for StarRocks, implemented as Java UDFs
 backed by [google/zetasketch](https://github.com/google/zetasketch).
 
 Lets you store BigQuery `HLL_COUNT.INIT` sketches in StarRocks and re-aggregate
-them with the same cardinality semantics — i.e. read sketches produced by the
-upstream dbt `spacetime` pipeline directly from StarRocks without re-computing
-distinct counts from raw events.
+them with the same cardinality semantics — i.e. read BigQuery sketches
+directly from StarRocks without re-computing distinct counts from raw events.
 
 ## Functions
 
@@ -163,9 +162,9 @@ Recommended one-time check before trusting these UDFs in production:
 
 ```sql
 -- BigQuery
-SELECT TO_BASE64(HLL_COUNT.INIT(domain_userid)) AS sketch
-FROM `REDACTED_PROJECT.REDACTED_DATASET.events`
-WHERE collector_tstamp >= '2026-05-01';
+SELECT TO_BASE64(HLL_COUNT.INIT(user_id)) AS sketch
+FROM `your-project.your_dataset.your_events_table`
+WHERE event_date >= '2026-05-01';
 
 -- Save the sketch string, load into StarRocks as VARCHAR
 SELECT hllpp_extract('<base64 from above>');  -- should match HLL_COUNT.EXTRACT in BQ

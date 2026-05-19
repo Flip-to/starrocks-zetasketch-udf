@@ -2,9 +2,8 @@
 
 BigQuery-compatible HLL++ functions for **StarRocks**, implemented as Java
 UDFs that wrap [google/zetasketch](https://github.com/google/zetasketch). Lets
-StarRocks read and re-aggregate the same `HLL_COUNT.*` sketches that the
-BigQuery `spacetime` dbt pipeline already produces — no recomputing distinct
-counts from raw Snowplow events.
+StarRocks read and re-aggregate the same `HLL_COUNT.*` sketches that
+BigQuery already produces — no recomputing distinct counts from raw events.
 
 ## Stack
 

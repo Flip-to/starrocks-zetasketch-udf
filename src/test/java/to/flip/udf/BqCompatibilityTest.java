@@ -27,9 +27,9 @@ import static org.junit.jupiter.api.Assertions.fail;
 class BqCompatibilityTest {
 
     private static final Path EXTRACT_CSV =
-            Path.of("test-fixtures", "bq_sketches", "search_extract_fixtures.csv");
+            Path.of("test-fixtures", "bq_sketches", "extract_fixtures.csv");
     private static final Path MERGE_CSV =
-            Path.of("test-fixtures", "bq_sketches", "search_merge_fixtures.csv");
+            Path.of("test-fixtures", "bq_sketches", "merge_fixtures.csv");
 
     static boolean fixturesPresent() {
         return Files.exists(EXTRACT_CSV) || Files.exists(MERGE_CSV);
