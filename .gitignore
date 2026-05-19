@@ -5,6 +5,15 @@ target/
 # Optional local-only JVM flags (e.g. trustStoreType for Windows devs
 # whose JDK cacerts do not include the corporate CA)
 .mvn/jvm.config
+
+# Real BigQuery HLL sketches pulled by scripts/dump_bq_fixtures.py.
+# Contains org data — never commit. Repo is public.
+test-fixtures/bq_sketches/*.csv
+test-fixtures/bq_sketches/*.json
+
+# Python venv for the BQ dump script
+scripts/.venv/
+__pycache__/
 .idea/
 .vscode/
 *.iml
