@@ -1,14 +1,18 @@
 name: release
 
+# Manual / re-run workflow. The normal release path is release-please.yml,
+# which builds and attaches jars inside its own run (avoids the
+# GITHUB_TOKEN-doesn't-trigger-workflows trap).
+#
+# This workflow exists for:
+#   - Re-attaching assets to an existing release (e.g. after a manual edit)
+#   - Cutting a release from a tag pushed by a human, not by release-please
+
 on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-*'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g. 1.0.0)'
+        description: 'Existing release version to (re)attach assets to (e.g. 0.1.0)'
         required: true
         type: string
 
@@ -21,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          ref: v${{ inputs.version }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -30,19 +34,8 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: Resolve version
-        id: ver
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
-          else
-            VERSION="${GITHUB_REF_NAME#v}"
-          fi
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
-
       - name: Set Maven project version
-        run: ./mvnw -B -ntp versions:set -DnewVersion=${{ steps.ver.outputs.version }} -DgenerateBackupPoms=false
+        run: ./mvnw -B -ntp versions:set -DnewVersion=${{ inputs.version }} -DgenerateBackupPoms=false
 
       - name: Run tests
         run: ./mvnw -B -ntp test
@@ -56,18 +49,17 @@ jobs:
           cd target
           JAR=$(ls starrocks-zetasketch-udf-*-jar-with-dependencies.jar)
           sha256sum "$JAR" | tee "${JAR}.sha256"
-          sha256sum "starrocks-zetasketch-udf-${{ steps.ver.outputs.version }}.jar" | tee "starrocks-zetasketch-udf-${{ steps.ver.outputs.version }}.jar.sha256"
+          sha256sum "starrocks-zetasketch-udf-${{ inputs.version }}.jar" \
+            | tee "starrocks-zetasketch-udf-${{ inputs.version }}.jar.sha256"
           echo "jar=${JAR}" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub Release
+      - name: Attach jars to release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          name: ${{ steps.ver.outputs.tag }}
-          generate_release_notes: true
+          tag_name: v${{ inputs.version }}
           fail_on_unmatched_files: true
           files: |
             target/${{ steps.sums.outputs.jar }}
             target/${{ steps.sums.outputs.jar }}.sha256
-            target/starrocks-zetasketch-udf-${{ steps.ver.outputs.version }}.jar
-            target/starrocks-zetasketch-udf-${{ steps.ver.outputs.version }}.jar.sha256
+            target/starrocks-zetasketch-udf-${{ inputs.version }}.jar
+            target/starrocks-zetasketch-udf-${{ inputs.version }}.jar.sha256
