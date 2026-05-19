@@ -223,6 +223,99 @@ SELECT hllpp_extract('<base64 from above>');  -- should match HLL_COUNT.EXTRACT 
 Place sketches in `test-fixtures/bq_sketches/` to add deterministic regression
 tests.
 
+## End-to-end validation against BigQuery via GCS Parquet
+
+Validated path (StarRocks 4.1, May 2026): export BQ sketches to GCS as Parquet,
+read with `FILES()`, run `hllpp_extract` against the BQ ground-truth column in
+the same row. 100/100 rows on a real sketch table returned `diff = 0`.
+
+### 1. Export BQ sketches + ground truth to GCS
+
+Run from BigQuery. `TO_BASE64` is required — Parquet `BYTES` round-trip into
+StarRocks Java UDFs as base64 strings (see note at top of README).
+
+```sql
+EXPORT DATA OPTIONS(
+  uri='gs://<your-bucket>/sr_test/sketches_*.parquet',
+  format='PARQUET',
+  overwrite=true
+) AS
+SELECT
+  some_row_key,
+  HLL_COUNT.EXTRACT(my_hll_bytes_col) AS bq_count,
+  TO_BASE64(my_hll_bytes_col)          AS base64_sketch
+FROM `<your-project>.<dataset>.<table>`
+WHERE <partition filter>
+LIMIT 100;
+```
+
+The service account used needs `storage.buckets.get` and
+`storage.objects.{list,get,create}` on the bucket.
+
+### 2. Configure GCS auth on StarRocks (4.1-latest workaround)
+
+StarRocks 4.1 `FILES()` accepts inline `gcp.gcs.service_account_*` properties
+per docs, but at the time of writing the inline path hits an NPE inside
+`HadoopCredentialsConfiguration.getCredentialsInternal` — the auth mode
+defaults to `SERVICE_ACCOUNT_JSON_KEYFILE` but the keyfile path is never set.
+
+Workaround: configure the GCS Hadoop connector globally via `core-site.xml`
+on **both FE and BE** (`fe/conf/core-site.xml`, `be/conf/core-site.xml`),
+then drop the inline credentials from the `FILES()` call.
+
+```xml
+<configuration>
+  <property>
+    <name>fs.gs.impl</name>
+    <value>com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem</value>
+  </property>
+  <property>
+    <name>fs.AbstractFileSystem.gs.impl</name>
+    <value>com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS</value>
+  </property>
+  <property>
+    <name>fs.gs.auth.type</name>
+    <value>SERVICE_ACCOUNT_JSON_KEYFILE</value>
+  </property>
+  <property>
+    <name>fs.gs.auth.service.account.json.keyfile</name>
+    <value>/path/inside/container/sa.json</value>
+  </property>
+</configuration>
+```
+
+Mount the service account JSON at the path referenced above and restart the
+cluster. The path must be readable by both FE and BE processes.
+
+### 3. Read + validate
+
+```sql
+SELECT
+  COUNT(*)                                                                AS total,
+  SUM(CASE WHEN bq_count  = hllpp_extract(base64_sketch) THEN 1 ELSE 0 END) AS matched,
+  SUM(CASE WHEN bq_count != hllpp_extract(base64_sketch) THEN 1 ELSE 0 END) AS mismatched,
+  MAX(ABS(bq_count - hllpp_extract(base64_sketch)))                       AS max_abs_diff
+FROM FILES(
+  'path'   = 'gs://<your-bucket>/sr_test/sketches_*.parquet',
+  'format' = 'parquet'
+);
+```
+
+`mismatched = 0` and `max_abs_diff = 0` confirms bit-exact compatibility on
+the sample. Pass the base64 string directly to `hllpp_extract` — do **not**
+call `from_base64()` first; the UDF decodes internally and raw bytes will
+throw `IllegalArgumentException: Illegal base64 character`.
+
+### Notes
+
+- A JDBC catalog against BigQuery via the Simba driver does not work. The
+  StarRocks FE has a hardcoded `driver_class` substring allowlist
+  (`mysql|postgresql|mariadb|clickhouse|oracle|sqlserver`) and additionally
+  overrides `getDriverName()` to force a bundled vendor driver matching the
+  allowlist token — so even a shim class named e.g.
+  `com.simba.googlebigquery.jdbc.mysqlDriver` is bypassed at load time.
+  Stick to the GCS-Parquet path above (or a BigLake/Iceberg catalog).
+
 ## Gotchas
 
 - `ByteBuffer.remaining()` and `clear()` are forbidden in `merge()` per
