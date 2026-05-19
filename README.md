@@ -33,11 +33,26 @@ dense happens automatically inside ZetaSketch on merge.
 
 ## Build
 
-Requires JDK 17 and Maven.
+Requires JDK 17. Maven is bootstrapped by the Maven Wrapper (`./mvnw`).
 
 ```bash
-mvn package
+./mvnw package
 ```
+
+### Windows + corporate TLS interception
+
+If `./mvnw` fails at HTTPS handshake with `PKIX path building failed` (common
+on dev boxes behind corporate MITM proxies whose CA is not in the JDK
+cacerts), point the JVM at the Windows certificate store:
+
+```powershell
+$env:MAVEN_OPTS = "-Djavax.net.ssl.trustStoreType=WINDOWS-ROOT"
+./mvnw package
+```
+
+Or persist it locally only — create `.mvn/jvm.config` containing
+`-Djavax.net.ssl.trustStoreType=WINDOWS-ROOT`. The file is gitignored so it
+won't break Linux CI runners (where the flag is invalid).
 
 Output: `target/starrocks-zetasketch-udf-1.0.0-SNAPSHOT-jar-with-dependencies.jar`.
 

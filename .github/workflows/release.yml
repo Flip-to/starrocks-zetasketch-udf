@@ -38,15 +38,11 @@ jobs:
           else
             VERSION="${GITHUB_REF_NAME#v}"
           fi
-          # release-please already wrote this version into pom.xml on the
-          # tagged commit, so we only need to verify it matches.
-          POM_VERSION=$(./mvnw -B -ntp -q -DforceStdout help:evaluate -Dexpression=project.version)
-          if [ "${POM_VERSION}" != "${VERSION}" ]; then
-            echo "::error::pom.xml version (${POM_VERSION}) does not match tag (${VERSION})"
-            exit 1
-          fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Set Maven project version
+        run: ./mvnw -B -ntp versions:set -DnewVersion=${{ steps.ver.outputs.version }} -DgenerateBackupPoms=false
 
       - name: Run tests
         run: ./mvnw -B -ntp test

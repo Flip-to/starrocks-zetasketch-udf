@@ -2,6 +2,9 @@ target/
 *.class
 *.jar
 !.mvn/wrapper/maven-wrapper.jar
+# Optional local-only JVM flags (e.g. trustStoreType for Windows devs
+# whose JDK cacerts do not include the corporate CA)
+.mvn/jvm.config
 .idea/
 .vscode/
 *.iml
