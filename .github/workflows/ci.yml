@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Verify Maven Wrapper
+        run: ./mvnw -version
+
+      - name: Run tests
+        run: ./mvnw -B -ntp test
+
+      - name: Build shaded jar
+        run: ./mvnw -B -ntp package -DskipTests
+
+      - name: Upload jar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shaded-jar-${{ github.sha }}
+          path: target/starrocks-zetasketch-udf-*-jar-with-dependencies.jar
+          if-no-files-found: error
+          retention-days: 14

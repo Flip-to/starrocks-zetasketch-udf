@@ -1,0 +1,15 @@
+{
+  "release-type": "maven",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": false,
+  "include-v-in-tag": true,
+  "include-component-in-tag": false,
+  "draft": false,
+  "prerelease": false,
+  "packages": {
+    ".": {
+      "package-name": "starrocks-zetasketch-udf",
+      "changelog-path": "CHANGELOG.md"
+    }
+  }
+}
