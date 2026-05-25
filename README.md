@@ -9,23 +9,62 @@ directly from StarRocks without re-computing distinct counts from raw events.
 
 ## Functions
 
-| StarRocks UDF              | BigQuery equivalent      | Signature                            |
-| -------------------------- | ------------------------ | ------------------------------------ |
-| `hllpp_init_string`        | `HLL_COUNT.INIT(STRING)` | `(STRING) -> STRING` (UDAF)          |
-| `hllpp_init_long`          | `HLL_COUNT.INIT(INT64)`  | `(BIGINT) -> STRING` (UDAF)          |
-| `hllpp_init_bytes`         | `HLL_COUNT.INIT(BYTES)`  | `(STRING base64) -> STRING` (UDAF)   |
-| `hllpp_merge_partial`      | `HLL_COUNT.MERGE_PARTIAL`| `(STRING) -> STRING` (UDAF)          |
-| `hllpp_merge`              | `HLL_COUNT.MERGE`        | `(STRING) -> BIGINT` (UDAF)          |
-| `hllpp_extract`            | `HLL_COUNT.EXTRACT`      | `(STRING) -> BIGINT` (scalar)        |
+| StarRocks UDF              | BigQuery equivalent      | Signature                              |
+| -------------------------- | ------------------------ | -------------------------------------- |
+| `hllpp_init_string`        | `HLL_COUNT.INIT(STRING)` | `(STRING) -> STRING` (UDAF)            |
+| `hllpp_init_long`          | `HLL_COUNT.INIT(INT64)`  | `(BIGINT) -> STRING` (UDAF)            |
+| `hllpp_init_bytes`         | `HLL_COUNT.INIT(BYTES)`  | `(STRING base64) -> STRING` (UDAF)     |
+| `hllpp_merge_partial`      | `HLL_COUNT.MERGE_PARTIAL`| `(STRING) -> STRING` (UDAF)            |
+| `hllpp_merge`              | `HLL_COUNT.MERGE`        | `(STRING) -> BIGINT` (UDAF)            |
+| `hllpp_extract`            | `HLL_COUNT.EXTRACT`      | `(STRING) -> BIGINT` (scalar)          |
+| `hllpp_merge_n`            | N × `HLL_COUNT.MERGE`         | `(ARRAY<STRING>) -> ARRAY<BIGINT>` (UDAF)  |
+| `hllpp_merge_partial_n`    | N × `HLL_COUNT.MERGE_PARTIAL` | `(ARRAY<STRING>) -> ARRAY<STRING>` (UDAF)  |
 
 Sketches built by `init_string` / `init_long` / `init_bytes` are NOT
 inter-mergeable — same constraint as BigQuery. Merging across underlying types
 throws at update time.
 
-Sketches are exchanged as base64-encoded strings because the StarRocks Java UDF
-type table (v3.x docs) does not list `VARBINARY`. Storage may still be
-`VARBINARY` — wrap reads in `TO_BASE64()` until native `byte[]` support is
-verified on the target cluster.
+### Why base64? (VARBINARY confirmed absent from SR Java UDF type table)
+
+Sketches are exchanged as base64-encoded strings. StarRocks Java UDF docs (v3.x
+and v4.x) do not include `VARBINARY` in the SQL→Java type mapping table —
+confirmed against SR 4.1 release notes and current hosted docs. `byte[]` has no
+mapping. Use `TO_BASE64(col)` in SQL to convert VARBINARY/BYTES storage to STRING
+before passing to any UDF here.
+
+This is unlikely to change soon (no open issue or roadmap entry found as of
+2026-05). Watch [starrocks#VARBINARY UDF](https://github.com/StarRocks/starrocks)
+for updates.
+
+### `hllpp_merge_n` — single-pass multi-column merge
+
+When a query merges many sketch columns (e.g. 17 traffic metrics), calling
+`hllpp_merge()` once per column makes the SR execution engine run one UDAF state
+machine per column — each processing all rows independently. `hllpp_merge_n`
+takes all N sketches packed into an `ARRAY<STRING>` per row and returns all N
+cardinalities in one pass, reducing Java `update()` dispatches by N× and
+improving JVM JIT locality on the ZetaSketch merge hot path.
+
+```sql
+SELECT
+  result[1]  AS total_users,
+  result[2]  AS is_new_users,
+  result[3]  AS is_revealed_users,
+  -- ... up to N
+FROM (
+  SELECT hllpp_merge_n(ARRAY[
+    to_base64(metrics.total_hll),
+    to_base64(metrics.is_new_user_hll),
+    to_base64(metrics.is_revealed_hll)
+    -- add more positions here
+  ]) AS result
+  FROM spacetime.mv_traffic_metrics_root
+  WHERE entity_uuid = '...'
+    AND granular_date BETWEEN '2025-05-22' AND '2026-05-22'
+) t
+```
+
+Array position is caller-defined — document your column order in the query.
 
 Precision defaults to **normal=15** (BigQuery default). Sparse promotion to
 dense happens automatically inside ZetaSketch on merge.

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/Flip-to/starrocks-zetasketch-udf/compare/v0.1.1...v0.2.0) (2026-05-25)
+
+
+### Features
+
+* add hllpp_merge_n and hllpp_merge_partial_n single-pass UDAFs ([b434747](https://github.com/Flip-to/starrocks-zetasketch-udf/commit/b43474730c3fd3fbfd5c9e7bf620c25be9206a1c))
+* add hllpp_merge_n and hllpp_merge_partial_n single-pass UDAFs ([#11](https://github.com/Flip-to/starrocks-zetasketch-udf/issues/11)) ([4834ed2](https://github.com/Flip-to/starrocks-zetasketch-udf/commit/4834ed20cbfd15e6896d93c41901c208d9360f7d))
+
 ## [0.1.1](https://github.com/Flip-to/starrocks-zetasketch-udf/compare/v0.1.0...v0.1.1) (2026-05-19)
 
 
