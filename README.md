@@ -108,7 +108,7 @@ Pick one:
 
 - **Public GitHub Release** (simplest, requires internet from the cluster):
   use the URL of the shaded jar from a GitHub release, e.g.
-  `https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.1.1/starrocks-zetasketch-udf-0.1.1-jar-with-dependencies.jar`
+  `https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.2.0/starrocks-zetasketch-udf-0.2.0-jar-with-dependencies.jar`
 - **Self-hosted HTTP**: drop the shaded jar on any HTTP server the cluster
   can reach (`python3 -m http.server 8000` on a jump host works).
 
@@ -133,49 +133,49 @@ RETURNS BIGINT
 PROPERTIES (
     "symbol" = "to.flip.udf.HllppExtract",
     "type"   = "StarrocksJar",
-    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.1.1/starrocks-zetasketch-udf-0.1.1-jar-with-dependencies.jar"
+    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.2.0/starrocks-zetasketch-udf-0.2.0-jar-with-dependencies.jar"
 );
 
 -- INIT family — pick the input type that matches your column.
-CREATE GLOBAL AGGREGATE FUNCTION hllpp_init_string(STRING)
+CREATE OR REPLACE GLOBAL AGGREGATE FUNCTION hllpp_init_string(STRING)
 RETURNS STRING
 PROPERTIES (
     "symbol" = "to.flip.udf.HllppInitString",
     "type"   = "StarrocksJar",
-    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.1.1/starrocks-zetasketch-udf-0.1.1-jar-with-dependencies.jar"
+    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.2.0/starrocks-zetasketch-udf-0.2.0-jar-with-dependencies.jar"
 );
 
-CREATE GLOBAL AGGREGATE FUNCTION hllpp_init_long(BIGINT)
+CREATE OR REPLACE GLOBAL AGGREGATE FUNCTION hllpp_init_long(BIGINT)
 RETURNS STRING
 PROPERTIES (
     "symbol" = "to.flip.udf.HllppInitLong",
     "type"   = "StarrocksJar",
-    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.1.1/starrocks-zetasketch-udf-0.1.1-jar-with-dependencies.jar"
+    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.2.0/starrocks-zetasketch-udf-0.2.0-jar-with-dependencies.jar"
 );
 
-CREATE GLOBAL AGGREGATE FUNCTION hllpp_init_bytes(STRING)
+CREATE OR REPLACE GLOBAL AGGREGATE FUNCTION hllpp_init_bytes(STRING)
 RETURNS STRING
 PROPERTIES (
     "symbol" = "to.flip.udf.HllppInitBytes",
     "type"   = "StarrocksJar",
-    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.1.1/starrocks-zetasketch-udf-0.1.1-jar-with-dependencies.jar"
+    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.2.0/starrocks-zetasketch-udf-0.2.0-jar-with-dependencies.jar"
 );
 
 -- MERGE family — operates on pre-built sketches (your own or from BigQuery).
-CREATE GLOBAL AGGREGATE FUNCTION hllpp_merge(STRING)
+CREATE OR REPLACE GLOBAL AGGREGATE FUNCTION hllpp_merge(STRING)
 RETURNS BIGINT
 PROPERTIES (
     "symbol" = "to.flip.udf.HllppMerge",
     "type"   = "StarrocksJar",
-    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.1.1/starrocks-zetasketch-udf-0.1.1-jar-with-dependencies.jar"
+    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.2.0/starrocks-zetasketch-udf-0.2.0-jar-with-dependencies.jar"
 );
 
-CREATE GLOBAL AGGREGATE FUNCTION hllpp_merge_partial(STRING)
+CREATE OR REPLACE GLOBAL AGGREGATE FUNCTION hllpp_merge_partial(STRING)
 RETURNS STRING
 PROPERTIES (
     "symbol" = "to.flip.udf.HllppMergePartial",
     "type"   = "StarrocksJar",
-    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.1.1/starrocks-zetasketch-udf-0.1.1-jar-with-dependencies.jar"
+    "file"   = "https://github.com/Flip-to/starrocks-zetasketch-udf/releases/download/v0.2.0/starrocks-zetasketch-udf-0.2.0-jar-with-dependencies.jar"
 );
 
 SHOW GLOBAL FUNCTIONS;
